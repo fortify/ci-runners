@@ -12,6 +12,14 @@ RUN Set-ExecutionPolicy Bypass -Scope Process -Force; \
 	choco install git -y; \
 	Write-Output 'Chocolatey and Git installed'
 
+# Install Visual C++ Redistributable (2015-2022)
+RUN $vcUrl = 'https://aka.ms/vs/17/release/vc_redist.x64.exe'; \
+	$out = 'C:\vc_redist.x64.exe'; \
+	Invoke-WebRequest -Uri $vcUrl -OutFile $out; \
+	Start-Process -FilePath $out -ArgumentList '/install','/passive','/norestart' -Wait; \
+	Remove-Item $out -Force; \
+	Write-Output 'VC++ Redistributable installed'
+
 COPY start.ps1 C:/azp/start.ps1
 
 WORKDIR C:/azp
