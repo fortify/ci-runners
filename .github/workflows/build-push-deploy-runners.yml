@@ -76,6 +76,10 @@ jobs:
             curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           fi
           helm version
+          az aks get-credentials \
+            --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
+            --name "${{ vars.AKS_CLUSTER_NAME }}" \
+            --overwrite-existing
           helm upgrade arc-runner-linux --namespace arc-runners --reuse-values oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
 
   build-windows:
@@ -142,4 +146,8 @@ jobs:
         run: |
           choco install kubernetes-helm -y --no-progress || true
           helm version
+          az aks get-credentials \
+            --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
+            --name "${{ vars.AKS_CLUSTER_NAME }}" \
+            --overwrite-existing
           helm upgrade arc-runner-windows --namespace arc-runners --reuse-values oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set

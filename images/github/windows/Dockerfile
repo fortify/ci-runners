@@ -25,6 +25,9 @@ RUN $vcUrl = 'https://aka.ms/vs/17/release/vc_redist.x64.exe'; \
     Remove-Item $out -Force; \
     Write-Output 'VC++ Redistributable installed'
 
+    # Ensure Git Bash and Chocolatey binaries are on PATH at runtime
+    ENV PATH="C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\bin;C:\\Program Files\\Git\\cmd;C:\\ProgramData\\chocolatey\\bin;${PATH}"
+
 COPY start.ps1 C:/runner/start.ps1
 
 WORKDIR C:/runner

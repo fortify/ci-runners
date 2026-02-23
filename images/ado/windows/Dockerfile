@@ -22,6 +22,9 @@ RUN $vcUrl = 'https://aka.ms/vs/17/release/vc_redist.x64.exe'; \
 
 COPY start.ps1 C:/azp/start.ps1
 
+	# Ensure Git Bash and Chocolatey binaries are on PATH at runtime
+	ENV PATH="C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\bin;C:\\Program Files\\Git\\cmd;C:\\ProgramData\\chocolatey\\bin;${PATH}"
+
 WORKDIR C:/azp
 
 ENTRYPOINT ["powershell", "-NoLogo", "-NoProfile", "-File", "C:/azp/start.ps1"]
