@@ -1,0 +1,129 @@
+name: Build, Push, Deploy Runner Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_arc_linux:
+        description: Deploy updated Linux ARC scale set
+        required: false
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+  push:
+    branches: [ main ]
+    paths:
+      - images/**
+      - .github/workflows/build-push-deploy-runners.yml
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGISTRY: ${{ vars.ACR_NAME }}.azurecr.io
+  GITHUB_LINUX_IMAGE: fortify/gha-runner-linux
+  GITHUB_WINDOWS_IMAGE: fortify/gha-runner-windows
+  ADO_LINUX_IMAGE: fortify/ado-agent-linux
+  ADO_WINDOWS_IMAGE: fortify/ado-agent-windows
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: GitHub Linux
+            dockerfile: images/github/linux/Dockerfile
+            image: fortify/gha-runner-linux
+          - name: ADO Linux
+            dockerfile: images/ado/linux/Dockerfile
+            image: fortify/ado-agent-linux
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login
+        run: az acr login --name ${{ vars.ACR_NAME }}
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.name }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ matrix.image }}:latest
+            ${{ env.REGISTRY }}/${{ matrix.image }}:sha-${{ github.sha }}
+
+  build-windows:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: GitHub Windows
+            dockerfile: images/github/windows/Dockerfile
+            image: fortify/gha-runner-windows
+          - name: ADO Windows
+            dockerfile: images/ado/windows/Dockerfile
+            image: fortify/ado-agent-windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login
+        shell: pwsh
+        run: az acr login --name "${{ vars.ACR_NAME }}"
+
+      - name: Build and push ${{ matrix.name }} image
+        shell: pwsh
+        run: |
+          $img1 = "${{ env.REGISTRY }}/${{ matrix.image }}:latest"
+          $img2 = "${{ env.REGISTRY }}/${{ matrix.image }}:sha-${{ github.sha }}"
+          docker build -f ${{ matrix.dockerfile }} -t $img1 -t $img2 .
+          docker push $img1
+          docker push $img2
+
+  deploy-arc-linux:
+    needs: [build-linux]
+    if: ${{ github.event_name == 'push' || inputs.deploy_arc_linux == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
+            --name "${{ vars.AKS_CLUSTER_NAME }}" \
+            --overwrite-existing
+
+      - name: Deploy ARC Linux scale set image
+        run: |
+          helm upgrade --install arc-runner-linux \
+            oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set \
+            --namespace arc-runners \
+            --reuse-values \
+            --set template.spec.containers[0].image="${{ env.REGISTRY }}/${{ env.GITHUB_LINUX_IMAGE }}:sha-${{ github.sha }}"
