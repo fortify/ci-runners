@@ -146,8 +146,5 @@ jobs:
         run: |
           choco install kubernetes-helm -y --no-progress || true
           helm version
-          az aks get-credentials \
-            --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
-            --name "${{ vars.AKS_CLUSTER_NAME }}" \
-            --overwrite-existing
+          az aks get-credentials --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" --name "${{ vars.AKS_CLUSTER_NAME }}" --overwrite-existing
           helm upgrade arc-runner-windows --namespace arc-runners --reuse-values oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
