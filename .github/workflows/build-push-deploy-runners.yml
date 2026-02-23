@@ -125,30 +125,3 @@ jobs:
           docker build -f ${{ matrix.context }}/${{ matrix.dockerfile }} -t $img1 -t $img2 ${{ matrix.context }}
           docker push $img1
           docker push $img2
-
-  deploy-arc-linux:
-    needs: [build-linux]
-    if: ${{ github.event_name == 'push' || inputs.deploy_arc_linux == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Get AKS credentials
-        run: |
-          az aks get-credentials \
-            --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
-            --name "${{ vars.AKS_CLUSTER_NAME }}" \
-            --overwrite-existing
-
-      - name: Deploy ARC Linux scale set image
-        run: |
-          helm upgrade --install arc-runner-linux \
-            oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set \
-            --namespace arc-runners \
-            --reuse-values \
-            --set template.spec.containers[0].image="${{ env.REGISTRY }}/${{ env.GITHUB_LINUX_IMAGE }}:sha-${{ github.sha }}"
