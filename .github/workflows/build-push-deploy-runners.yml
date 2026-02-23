@@ -68,6 +68,16 @@ jobs:
             ${{ env.REGISTRY }}/${{ matrix.image }}:latest
             ${{ env.REGISTRY }}/${{ matrix.image }}:sha-${{ github.sha }}
 
+      - name: Helm upgrade ARC Linux scale-set (GitHub images only)
+        if: matrix.name == 'GitHub Linux'
+        run: |
+          # install helm if missing
+          if ! command -v helm >/dev/null 2>&1; then
+            curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          fi
+          helm version
+          helm upgrade arc-runner-linux --namespace arc-runners --reuse-values oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
+
   build-windows:
     runs-on: windows-2022
     strategy:
@@ -125,3 +135,11 @@ jobs:
           docker build -f ${{ matrix.context }}/${{ matrix.dockerfile }} -t $img1 -t $img2 ${{ matrix.context }}
           docker push $img1
           docker push $img2
+
+      - name: Helm upgrade ARC Windows scale-set (GitHub images only)
+        if: matrix.name == 'GitHub Windows'
+        shell: pwsh
+        run: |
+          choco install kubernetes-helm -y --no-progress || true
+          helm version
+          helm upgrade arc-runner-windows --namespace arc-runners --reuse-values oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
