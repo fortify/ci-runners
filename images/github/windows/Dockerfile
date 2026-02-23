@@ -9,6 +9,14 @@ RUN New-Item -Path C:\runner -ItemType Directory -Force | Out-Null; \
     Expand-Archive -Path C:\runner\actions-runner.zip -DestinationPath C:\runner -Force; \
     Remove-Item C:\runner\actions-runner.zip -Force
 
+# Install Chocolatey and Git (provides bash)
+RUN Set-ExecutionPolicy Bypass -Scope Process -Force; \
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
+    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); \
+    choco feature enable -n allowGlobalConfirmation; \
+    choco install git -y; \
+    Write-Output 'Chocolatey and Git installed'
+
 COPY start.ps1 C:/runner/start.ps1
 
 WORKDIR C:/runner
