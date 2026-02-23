@@ -2,7 +2,7 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2022
 
 SHELL ["powershell", "-NoLogo", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ARG RUNNER_VERSION=2.398.0
+ARG RUNNER_VERSION=2.331.0
 
 RUN New-Item -Path C:\runner -ItemType Directory -Force | Out-Null; \
     Invoke-WebRequest -Uri "https://github.com/actions/runner/releases/download/v${env:RUNNER_VERSION}/actions-runner-win-x64-${env:RUNNER_VERSION}.zip" -OutFile C:\runner\actions-runner.zip; \
