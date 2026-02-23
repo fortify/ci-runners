@@ -34,10 +34,12 @@ jobs:
       matrix:
         include:
           - name: GitHub Linux
-            dockerfile: images/github/linux/Dockerfile
+            context: images/github/linux
+            dockerfile: Dockerfile
             image: fortify/gha-runner-linux
           - name: ADO Linux
-            dockerfile: images/ado/linux/Dockerfile
+            context: images/ado/linux
+            dockerfile: Dockerfile
             image: fortify/ado-agent-linux
     steps:
       - uses: actions/checkout@v4
@@ -58,8 +60,8 @@ jobs:
       - name: Build and push ${{ matrix.name }} image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ${{ matrix.dockerfile }}
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
           push: true
           platforms: linux/amd64
           tags: |
@@ -73,10 +75,12 @@ jobs:
       matrix:
         include:
           - name: GitHub Windows
-            dockerfile: images/github/windows/Dockerfile
+            context: images/github/windows
+            dockerfile: Dockerfile
             image: fortify/gha-runner-windows
           - name: ADO Windows
-            dockerfile: images/ado/windows/Dockerfile
+            context: images/ado/windows
+            dockerfile: Dockerfile
             image: fortify/ado-agent-windows
     steps:
       - uses: actions/checkout@v4
@@ -88,6 +92,27 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Ensure Docker Engine is available
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $dockerSvc = Get-Service -Name docker -ErrorAction SilentlyContinue
+          if (-not $dockerSvc) {
+            choco install docker-engine -y --no-progress
+            $dockerSvc = Get-Service -Name docker -ErrorAction SilentlyContinue
+          }
+
+          if (-not $dockerSvc) {
+            throw 'Docker service not found after installation.'
+          }
+
+          if ($dockerSvc.Status -ne 'Running') {
+            Start-Service docker
+          }
+
+          docker version
+
       - name: ACR login
         shell: pwsh
         run: az acr login --name "${{ vars.ACR_NAME }}"
@@ -97,7 +122,7 @@ jobs:
         run: |
           $img1 = "${{ env.REGISTRY }}/${{ matrix.image }}:latest"
           $img2 = "${{ env.REGISTRY }}/${{ matrix.image }}:sha-${{ github.sha }}"
-          docker build -f ${{ matrix.dockerfile }} -t $img1 -t $img2 .
+          docker build -f ${{ matrix.context }}/${{ matrix.dockerfile }} -t $img1 -t $img2 ${{ matrix.context }}
           docker push $img1
           docker push $img2
 
